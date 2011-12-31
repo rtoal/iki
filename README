@@ -4,7 +4,8 @@ the language, and that students can build a compiler themselves.
 
 This project is an implementation of an Iki compiler written in Java.
 It's a traditional Maven-based project.  It uses JavaCC for the front-end,
-JUnit for testing, can output either JavaScript, C, or assembly language.
+JUnit for testing, can output either JavaScript, C, or assembly language
+for the x86-64 architecture.
 
 If you are teaching a compiler course, feel free to have your students
 fork this project and implement extensions to the language.
