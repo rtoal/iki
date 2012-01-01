@@ -28,8 +28,12 @@ public abstract class Generator {
     }
 
     /**
+     * Generates a target program for the given Iki program.
+     *
      * @param program
+     *     The Iki program (source).
      * @param writer
+     *     Writer for the target program.
      */
     public abstract void generate(Program program, PrintWriter writer);
 }

@@ -1,5 +1,7 @@
 package edu.lmu.cs.xlg.iki.entities;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki while statement.
  */
@@ -19,5 +21,11 @@ public class WhileStatement extends Statement {
 
     public Block getBody() {
         return body;
+    }
+
+    @Override
+    public void analyze(SymbolTable table, Log log) {
+        condition.analyze(table, log);
+        body.analyze(table, log);
     }
 }

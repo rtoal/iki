@@ -1,5 +1,7 @@
 package edu.lmu.cs.xlg.iki.entities;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki assignment statement.
  */
@@ -19,5 +21,11 @@ public class AssignmentStatement extends Statement {
 
     public Expression getExpression() {
         return expression;
+    }
+
+    @Override
+    public void analyze(SymbolTable table, Log log) {
+        variableReference.analyze(table, log);
+        expression.analyze(table, log);
     }
 }

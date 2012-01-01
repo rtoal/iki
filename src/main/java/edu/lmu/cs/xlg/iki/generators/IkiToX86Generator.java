@@ -5,7 +5,7 @@ import java.io.PrintWriter;
 import edu.lmu.cs.xlg.iki.entities.Program;
 
 /**
- * A generator that translates an Iki program into JavaScript.
+ * A generator that translates an Iki program into assembly language for the x86-84.
  */
 public class IkiToX86Generator extends Generator {
 

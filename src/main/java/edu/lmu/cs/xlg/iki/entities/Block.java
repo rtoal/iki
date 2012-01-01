@@ -3,6 +3,8 @@ package edu.lmu.cs.xlg.iki.entities;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki block.
  */
@@ -22,5 +24,16 @@ public class Block extends Entity {
 
     public List<Statement> getStatements() {
         return statements;
+    }
+
+    @Override
+    public void analyze(SymbolTable outer, Log log) {
+        SymbolTable table = new SymbolTable(outer);
+        for (Declaration d: declarations) {
+            d.analyze(table, log);
+        }
+        for (Statement s: statements) {
+            s.analyze(table, log);
+        }
     }
 }

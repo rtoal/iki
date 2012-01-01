@@ -28,8 +28,8 @@ import edu.lmu.cs.xlg.util.Log;
  *     Declaration
  *         Variable (name)
  *     Statement
- *         AssignmentStatement (variable-reference, expression)
- *         ReadStatement (variable-references)
+ *         AssignmentStatement (variableReference, expression)
+ *         ReadStatement (variableReferences)
  *         WriteStatement (expressions)
  *         WhileStatement (condition, body)
  *     Expression
@@ -39,17 +39,6 @@ import edu.lmu.cs.xlg.util.Log;
  * </pre>
  */
 public abstract class Entity {
-
-    /**
-     * Performs semantic analysis on this entity.  Generally this operation updates fields in
-     * the entity.  Sometimes it does nothing.  Sometimes it detects and logs errors.
-     *
-     * <p>Some entities do not require any analysis at all, so we have a default do-nothing
-     * implementation, rather than an abstract method here.</p>
-     */
-    public void analyze(Log log) {
-        // Intentionally empty
-    }
 
     /**
      * Writes a simple, indented, syntax tree rooted at the given entity to the given print
@@ -114,4 +103,10 @@ public abstract class Entity {
         }
         return attributes;
     }
+
+    /**
+     * Performs semantic analysis on this entity.  Generally this operation updates fields in
+     * the entity.  Sometimes it does nothing.  Sometimes it detects and logs errors.
+     */
+    public abstract void analyze(SymbolTable table, Log log);
 }

@@ -1,5 +1,7 @@
 package edu.lmu.cs.xlg.iki.entities;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki binary expression.
  */
@@ -27,5 +29,11 @@ public class BinaryExpression extends Expression {
 
     public Expression getRight() {
         return right;
+    }
+
+    @Override
+    public void analyze(SymbolTable table, Log log) {
+        left.analyze(table, log);
+        right.analyze(table, log);
     }
 }

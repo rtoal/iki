@@ -12,6 +12,9 @@ begin
   while 4 * x loop
     var x;  -- inline comments
     var z;
+    while 5 - longName loop
+      longNAme = x + z - y;
+    end;
     read x, y, z;
   end;
   x = 5 * 4 + 23423 / 3 * 0 + 234 - 333;

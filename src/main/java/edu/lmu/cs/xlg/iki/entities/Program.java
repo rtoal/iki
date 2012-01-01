@@ -1,5 +1,7 @@
 package edu.lmu.cs.xlg.iki.entities;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki program.
  */
@@ -13,5 +15,10 @@ public class Program extends Entity {
 
     public Block getBlock() {
         return block;
+    }
+
+    @Override
+    public void analyze(SymbolTable table, Log log) {
+        block.analyze(table, log);
     }
 }

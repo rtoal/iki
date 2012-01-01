@@ -5,4 +5,5 @@ package edu.lmu.cs.xlg.iki.entities;
  */
 public abstract class Expression extends Entity {
 
+    // Intentionally empty
 }

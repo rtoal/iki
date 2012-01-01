@@ -7,6 +7,7 @@ import java.io.Reader;
 
 import edu.lmu.cs.xlg.iki.entities.Entity;
 import edu.lmu.cs.xlg.iki.entities.Program;
+import edu.lmu.cs.xlg.iki.entities.SymbolTable;
 import edu.lmu.cs.xlg.iki.generators.Generator;
 import edu.lmu.cs.xlg.iki.syntax.Parser;
 import edu.lmu.cs.xlg.util.Log;
@@ -101,13 +102,13 @@ public class Compiler {
      * compiler in a larger application.
      *
      * @param program
-     *     Program object to analyze
+     *     the program object to analyze
      * @return the (checked) semantic graph if successful, or null if there were any syntax or
      *     static semantic errors
      */
     public Program checkSemantics(Program program) {
         log.message("semantics.checking");
-        program.analyze(log);
+        program.analyze(new SymbolTable(), log);
         return program;
     }
 
@@ -128,8 +129,15 @@ public class Compiler {
     }
 
     /**
-     * Reads an Iki program from the given reader and outputs an equivalent C program to the
+     * Reads an Iki program from the given reader and outputs an equivalent program to the
      * given writer.
+     *
+     * @param name
+     *     the name of the generator to use, e.g. "c", "js", or "86".
+     * @param reader
+     *     the source
+     * @param writer
+     *     a writer to output the translation
      */
     public void translate(String name, Reader reader, PrintWriter writer) throws IOException {
         Program program = checkSemantics(reader);
@@ -139,19 +147,25 @@ public class Compiler {
     }
 
     /**
-     * Returns the number of errors logged so far.
+     * Returns the number of errors logged so far.  This can be used to determine whether or not
+     * to go on to the next compilation phase, as well as for the obvious end-of-compilation
+     * reporting task.
      */
     public int getErrorCount() {
         return log.getErrorCount();
     }
 
     /**
-     * Tells the compiler whether or not it should write log messages.
+     * Puts the compiler in an out of quiet mode.  In quiet mode, the compiler doe no logging
+     * at all.
      */
     public void setQuiet(boolean quiet) {
         log.setQuiet(quiet);
     }
 
+    /**
+     * Writes the usage message to stderr and exits with status 1.
+     */
     private static void abortWithUsageError() {
         System.err.println("Usage: java Compiler [-x|-m|-c|-js|-86] filename");
         System.err.println("");

@@ -3,7 +3,7 @@ package edu.lmu.cs.xlg.iki.entities;
 /**
  * An Iki declaration.
  */
-public class Declaration extends Entity {
+public abstract class Declaration extends Entity {
 
     private String name;
 
