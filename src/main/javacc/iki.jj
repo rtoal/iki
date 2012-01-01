@@ -1,0 +1,195 @@
+/*
+ *  iki.jj
+ *
+ *  Iki specification for JavaCC.
+ */
+
+options {
+    UNICODE_INPUT = true;
+    STATIC = false;
+}
+
+PARSER_BEGIN(Parser)
+
+package edu.lmu.cs.xlg.iki.syntax;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.io.Reader;
+//import edu.lmu.cs.xlg.util.Log;
+import edu.lmu.cs.xlg.iki.entities.Number;
+import edu.lmu.cs.xlg.iki.entities.*;
+
+public class Parser {
+
+    /**
+     * Returns the result of parsing the Iki program on the given Reader.
+     */
+    public Program parse() {
+        try {
+            return PROGRAM();
+        } catch (TokenMgrError e) {
+            e.printStackTrace();//log.exception(e);
+            return null;
+        } catch (ParseException e) {
+            e.printStackTrace();//log.exception(e);
+            return null;
+        }
+    }
+}
+
+PARSER_END(Parser)
+
+
+// Whitespace and comments
+
+SKIP: {
+    " " | "\t" | "\n" | "\r" | <"--" (~["\n","\r"])* ("\n"|"\r")>
+}
+
+// Reserved Words and symbols
+
+TOKEN: {
+    "begin" | "var" | "read" | "write" | "while" | "end" | "loop"
+    | "(" | ")" | ";" | "," | ":=" | "+" | "-" | "*" | "/"
+}
+
+// Literals
+
+TOKEN: {
+  < INTLIT: (["0"-"9"])+ >
+}
+
+// Identifiers - TODO These ranges are probably all wrong.
+
+TOKEN: {
+  < ID: <LETTER> (<LETTER>|<DIGIT>|"_")* >
+|
+  < #LETTER: [
+       "\u0041"-"\u005a", "\u0061"-"\u007a", "\u00c0"-"\u00d6",
+       "\u00d8"-"\u00f6", "\u00f8"-"\u00ff", "\u0100"-"\u1fff",
+       "\u3040"-"\u318f", "\u3300"-"\u337f", "\u3400"-"\u3d2d",
+       "\u4e00"-"\u9fff", "\uf900"-"\ufaff"
+  ] >
+|
+  < #DIGIT: [
+       "\u0030"-"\u0039", "\u0660"-"\u0669", "\u06f0"-"\u06f9",
+       "\u0966"-"\u096f", "\u09e6"-"\u09ef", "\u0a66"-"\u0a6f",
+       "\u0ae6"-"\u0aef", "\u0b66"-"\u0b6f", "\u0be7"-"\u0bef",
+       "\u0c66"-"\u0c6f", "\u0ce6"-"\u0cef", "\u0d66"-"\u0d6f",
+       "\u0e50"-"\u0e59", "\u0ed0"-"\u0ed9", "\u1040"-"\u1049"
+  ] >
+}
+
+// Iki Grammar (from http://www.cs.lmu.edu/~ray/notes/iki/)
+//
+//  PROGRAM   ->  'begin' BLOCK 'end'
+//  BLOCK     ->  (DEC ';')* (STMT ';')+
+//  DEC       ->  'var' ID
+//  STMT      ->  ID '=' EXP
+//            |   'read' ID (',' ID)*
+//            |   'write' EXP (',' EXP)*
+//            |   'while' EXP 'loop' BLOCK 'end'
+//  EXP       ->  TERM (ADDOP TERM)*
+//  TERM      ->  FACTOR (MULOP FACTOR)*
+//  FACTOR    ->  INTLIT | ID | '(' EXP ')'
+//  ADDOP     ->  '+' | '-'
+//  MULOP     ->  '*' | '/'
+
+Program PROGRAM(): {
+    Block b;
+}{
+    "begin" b = BLOCK() "end" <EOF>
+    {return new Program(b);}
+}
+
+Block BLOCK(): {
+    List<Declaration> declarations = new ArrayList<Declaration>();
+    List<Statement> statements = new ArrayList<Statement>();
+    Declaration d;
+    Statement s;
+}{
+    (d = DEC() ";" {declarations.add(d);})*
+    (s = STMT() ";" {statements.add(s);})+
+    {return new Block(declarations, statements);}
+}
+
+Declaration DEC(): {
+    Token i;
+}{
+    "var" i = <ID> {return new Variable(i.image);}
+}
+
+Statement STMT(): {
+    Block body;
+    Token v;
+    Expression e;
+    List<VariableReference> references = new ArrayList<VariableReference>();
+    List<Expression> expressions = new ArrayList<Expression>();
+    Expression condition;
+}{
+    v = <ID> "=" e = EXPR()
+    {return new AssignmentStatement(new VariableReference(v.image), e);}
+|
+    "read" v = <ID> {references.add(new VariableReference(v.image));}
+    ("," v = <ID> {references.add(new VariableReference(v.image));})*
+    {return new ReadStatement(references);}
+|
+    "write" e = EXPR() {expressions.add(e);}
+    ("," e = EXPR() {expressions.add(e);} )*
+    {return new WriteStatement(expressions);}
+|
+    "while" condition = EXPR() "loop" body = BLOCK() "end"
+    {return new WhileStatement(condition, body);}
+}
+
+Expression EXPR(): {
+    Expression e1, e2;
+    BinaryExpression.Operator op;
+}{
+    e1 = TERM()
+    (
+        op = ADDOP()
+        e2 = TERM()
+        {e1 = new BinaryExpression(op, e1, e2);}
+    )*
+    {return e1;}
+}
+
+Expression TERM(): {
+    Expression e1, e2;
+    BinaryExpression.Operator op;
+}{
+    e1 = FACTOR()
+    (
+        op = MULOP()
+        e2 = FACTOR()
+        {e1 = new BinaryExpression(op, e1, e2);}
+    )*
+    {return e1;}
+}
+
+Expression FACTOR(): {
+    Token v;
+    Expression e;
+}{
+    v = <INTLIT> {return new Number(Integer.parseInt(v.image));}
+|
+    v = <ID> {return new VariableReference(v.image);}
+|
+    "(" e = EXPR() ")" {return e;}
+}
+
+BinaryExpression.Operator ADDOP(): {
+}{
+    "+" {return BinaryExpression.Operator.PLUS;}
+|
+    "-" {return BinaryExpression.Operator.MINUS;}
+}
+
+BinaryExpression.Operator MULOP(): {
+}{
+    "*" {return BinaryExpression.Operator.TIMES;}
+|
+    "/" {return BinaryExpression.Operator.DIVIDE;}
+}
