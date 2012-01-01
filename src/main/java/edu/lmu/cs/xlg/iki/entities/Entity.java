@@ -4,11 +4,11 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import edu.lmu.cs.xlg.util.Log;
 
@@ -59,15 +59,14 @@ public abstract class Entity {
                 field.setAccessible(true);
                 String name = field.getName();
                 Object value = field.get(e);
-                if (value == null) continue;
-                if ((field.getModifiers() & Modifier.STATIC) != 0) continue;
-
-                if (value instanceof Entity) {
+                if (value == null) {
+                    continue;
+                } else if (value instanceof Entity) {
                     children.put(name, (Entity)value);
-                } else if (value instanceof Collection<?>) {
+                } else if (value instanceof Iterable<?>) {
                     try {
                         int index = 0;
-                        for (Object child: (Collection<?>)value) {
+                        for (Object child: (Iterable<?>)value) {
                             children.put(name + "[" + (index++) + "]", (Entity)child);
                         }
                     } catch (ClassCastException cce) {
@@ -87,17 +86,55 @@ public abstract class Entity {
         }
     }
 
+    /**
+     * Traverses the semantic graph starting at e, applying visitor v to each entity.
+     */
+    public static void traverse(Entity e, Visitor v, Set<Entity> visited) {
+
+        if (visited.contains(e)) {
+            return;
+        }
+        visited.add(e);
+
+        v.visit(e);
+
+        for (Field field: Entity.relevantFields(e.getClass())) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(e);
+                if (value == null) {
+                    continue;
+                } else if (value instanceof Entity) {
+                    traverse((Entity)value, v, visited);
+                } else if (value instanceof Collection<?>) {
+                    for (Object child: (Collection<?>)value) {
+                        traverse((Entity)child, v, visited);
+                    }
+                }
+            } catch (IllegalAccessException cannotHappen) {
+            }
+        }
+    }
+
+    public static interface Visitor {
+        void visit(Entity e);
+    }
+
     public static void dump(Entity root, PrintWriter writer) {
         writer.println("Semantic dump not implemented");
     }
 
     /**
-     * Returns a list of all declared fields of class c, together with fields of its ancestor
-     * classes, assuming that c is a descendant class of Entity.
+     * Returns a list of all non-static declared fields of class c, together with the relevant
+     * fields of its ancestor classes, assuming that c is a descendant class of Entity.
      */
     private static List<Field> relevantFields(Class<?> c) {
         List<Field> attributes = new ArrayList<Field>();
-        attributes.addAll(Arrays.asList(c.getDeclaredFields()));
+        for (Field field: c.getDeclaredFields()) {
+            if ((field.getModifiers() & Modifier.STATIC) == 0) {
+                attributes.add(field);
+            }
+        }
         if (c.getSuperclass() != Entity.class) {
             attributes.addAll(relevantFields(c.getSuperclass()));
         }

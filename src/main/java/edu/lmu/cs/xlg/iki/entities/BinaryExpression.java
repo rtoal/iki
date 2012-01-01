@@ -7,7 +7,20 @@ import edu.lmu.cs.xlg.util.Log;
  */
 public class BinaryExpression extends Expression {
 
-    public static enum Operator {PLUS, MINUS, TIMES, DIVIDE}
+    public static enum Operator {
+        PLUS("+"), MINUS("-"), TIMES("*"), DIVIDE("/");
+
+        private String text;
+
+        private Operator(String text) {
+            this.text = text;
+        }
+
+        @Override
+        public String toString() {
+            return text;
+        }
+    }
 
     private Operator operator;
     private Expression left;

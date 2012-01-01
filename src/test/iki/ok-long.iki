@@ -7,13 +7,13 @@ begin
   var x;
   var y;
   var longName;
-  var longNAme;
-  write 2, x;
+  var longNAme;  --case sensitivity test
+  write 2, x;    -- multiple write expressions test
   while 4 * x loop
-    var x;  -- inline comments
+    var x;  -- nested variable declaration okay
     var z;
     while 5 - longName loop
-      longNAme = x + z - y;
+      longNAme = x + z - y;   -- zero declarations test
     end;
     read x, y, z;
   end;
