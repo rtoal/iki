@@ -16,7 +16,7 @@ package edu.lmu.cs.xlg.iki.syntax;
 import java.util.List;
 import java.util.ArrayList;
 import java.io.Reader;
-//import edu.lmu.cs.xlg.util.Log;
+import edu.lmu.cs.xlg.util.Log;
 import edu.lmu.cs.xlg.iki.entities.Number;
 import edu.lmu.cs.xlg.iki.entities.*;
 
@@ -25,14 +25,14 @@ public class Parser {
     /**
      * Returns the result of parsing the Iki program on the given Reader.
      */
-    public Program parse() {
+    public Program parse(Log log) {
         try {
             return PROGRAM();
         } catch (TokenMgrError e) {
-            e.printStackTrace();//log.exception(e);
+            log.exception(e);
             return null;
         } catch (ParseException e) {
-            e.printStackTrace();//log.exception(e);
+            log.exception(e);
             return null;
         }
     }

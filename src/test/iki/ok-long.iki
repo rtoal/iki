@@ -1,0 +1,18 @@
+
+-- This is a fairly long Iki program
+-- for the front end tester.  It should
+-- pass both syntax and semantics checking.
+
+begin
+  var x;
+  var y;
+  var longName;
+  var longNAme;
+  write 2, x;
+  while 4 * x loop
+    var x;  -- inline comments
+    var z;
+    read x, y, z;
+  end;
+  x = 5 * 4 + 23423 / 3 * 0 + 234 - 333;
+end
