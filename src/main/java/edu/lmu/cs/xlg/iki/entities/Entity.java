@@ -10,6 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import edu.lmu.cs.xlg.util.Log;
+
 /**
  * An Iki entity.
  *
@@ -38,20 +40,31 @@ import java.util.Map;
  */
 public abstract class Entity {
 
-    // TODO public abstract void analyze();
+    /**
+     * Performs semantic analysis on this entity.  Generally this operation updates fields in
+     * the entity.  Sometimes it does nothing.  Sometimes it detects and logs errors.
+     *
+     * <p>Some entities do not require any analysis at all, so we have a default do-nothing
+     * implementation, rather than an abstract method here.</p>
+     */
+    public void analyze(Log log) {
+        // Intentionally empty
+    }
 
     /**
      * Writes a simple, indented, syntax tree rooted at the given entity to the given print
-     * writer.  Each level is indented four spaces.
+     * writer.  Each level is indented two spaces.
      */
     public static void printSyntaxTree(String indent, String prefix, Entity e, PrintWriter out) {
 
-        // Build a node for it with the prefix and the class name
+        // Prepare the line to be written
         String className = e.getClass().getName();
-        Map<String, Entity> children = new LinkedHashMap<String, Entity>();
         String line = indent + prefix + className.substring(className.lastIndexOf('.') + 1);
 
-        // Add all the children
+        // Process the fields, adding plain attributes to the line, but storing all the entity
+        // children in a linked hash map to be processed after the line is written.  We use a
+        // linked hash map because the order of output is important.
+        Map<String, Entity> children = new LinkedHashMap<String, Entity>();
         for (Field field: Entity.relevantFields(e.getClass())) {
             try {
                 field.setAccessible(true);
@@ -69,6 +82,7 @@ public abstract class Entity {
                             children.put(name + "[" + (index++) + "]", (Entity)child);
                         }
                     } catch (ClassCastException cce) {
+                        // Special case for non-entity collections
                         line += " " + name + "=\"" + value + "\"";
                     }
                 } else {
@@ -82,6 +96,10 @@ public abstract class Entity {
         for (Map.Entry<String, Entity> child: children.entrySet()) {
             printSyntaxTree(indent + "  ", child.getKey() + ": ", child.getValue(), out);
         }
+    }
+
+    public static void dump(Entity root, PrintWriter writer) {
+        writer.println("Semantic dump not implemented");
     }
 
     /**
