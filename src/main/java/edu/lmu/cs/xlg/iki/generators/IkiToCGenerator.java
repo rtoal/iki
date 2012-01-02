@@ -52,7 +52,7 @@ public class IkiToCGenerator extends Generator {
      */
     private void generateDeclaration(Declaration d) {
         // The only kind of declaration there is in Iki is the variable.
-        emit("int " + id(d) + ";");
+        emit("int " + id(d) + " = 0;");
     }
 
     /**
