@@ -2,6 +2,7 @@ package edu.lmu.cs.xlg.iki.entities;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 
 import edu.lmu.cs.xlg.util.Log;
 
@@ -34,6 +35,18 @@ public class Block extends Entity {
         }
         for (Statement s: statements) {
             s.analyze(table, log);
+        }
+    }
+
+    public void optimize() {
+        for (ListIterator<Statement> it = statements.listIterator(); it.hasNext();) {
+            Statement original = it.next();
+            Statement optimized = original.optimize();
+            if (optimized == null) {
+                it.remove();
+            } else if (optimized != original) {
+                it.set(optimized);
+            }
         }
     }
 }

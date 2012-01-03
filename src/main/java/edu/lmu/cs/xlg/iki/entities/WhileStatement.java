@@ -28,4 +28,15 @@ public class WhileStatement extends Statement {
         condition.analyze(table, log);
         body.analyze(table, log);
     }
+
+    @Override
+    public Statement optimize() {
+        condition = condition.optimize();
+        body.optimize();
+        if  (condition.isZero()) {
+            // "while 0" is really a no-op!
+            return null;
+        }
+        return this;
+    }
 }

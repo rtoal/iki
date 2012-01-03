@@ -25,4 +25,10 @@ public class ReadStatement extends Statement {
             v.analyze(table, log);
         }
     }
+
+    @Override
+    public Statement optimize() {
+        // Nothing to do, really, as variable references don't need to be optimized.
+        return this;
+    }
 }

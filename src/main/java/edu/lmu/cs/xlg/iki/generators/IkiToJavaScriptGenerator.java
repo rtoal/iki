@@ -52,7 +52,7 @@ public class IkiToJavaScriptGenerator extends Generator {
     }
 
     /**
-     * Emits C code for the given Iki statement.
+     * Emits JavaScript code for the given Iki statement.
      */
     private void generateStatement(Statement s) {
         if (s instanceof AssignmentStatement) {

@@ -1,6 +1,7 @@
 package edu.lmu.cs.xlg.iki.entities;
 
 import java.util.List;
+import java.util.ListIterator;
 
 import edu.lmu.cs.xlg.util.Log;
 
@@ -24,5 +25,13 @@ public class WriteStatement extends Statement {
         for (Expression expression: expressions) {
             expression.analyze(table, log);
         }
+    }
+
+    @Override
+    public Statement optimize() {
+        for (ListIterator<Expression> it = expressions.listIterator(); it.hasNext();) {
+            it.set(it.next().optimize());
+        }
+        return this;
     }
 }

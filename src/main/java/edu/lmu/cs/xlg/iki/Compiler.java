@@ -142,6 +142,7 @@ public class Compiler {
     public void translate(String name, Reader reader, PrintWriter writer) throws IOException {
         Program program = checkSemantics(reader);
         if (log.getErrorCount() == 0) {
+            program.optimize();
             Generator.getGenerator(name).generate(program, writer);
         }
     }

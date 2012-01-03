@@ -3,10 +3,7 @@ package edu.lmu.cs.xlg.iki.entities;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -54,70 +51,65 @@ public abstract class Entity {
         // children in a linked hash map to be processed after the line is written.  We use a
         // linked hash map because the order of output is important.
         Map<String, Entity> children = new LinkedHashMap<String, Entity>();
-        for (Field field: Entity.relevantFields(e.getClass())) {
-            try {
-                field.setAccessible(true);
-                String name = field.getName();
-                Object value = field.get(e);
-                if (value == null) {
-                    continue;
-                } else if (value instanceof Entity) {
-                    children.put(name, (Entity)value);
-                } else if (value instanceof Iterable<?>) {
-                    try {
-                        int index = 0;
-                        for (Object child: (Iterable<?>)value) {
-                            children.put(name + "[" + (index++) + "]", (Entity)child);
-                        }
-                    } catch (ClassCastException cce) {
-                        // Special case for non-entity collections
-                        line += " " + name + "=\"" + value + "\"";
+        for (Map.Entry<String, Object> entry: e.attributes().entrySet()) {
+            String name = entry.getKey();
+            Object value = entry.getValue();
+            if (value == null) {
+                continue;
+            } else if (value instanceof Entity) {
+                children.put(name, Entity.class.cast(value));
+            } else if (value instanceof Iterable<?>) {
+                try {
+                    int index = 0;
+                    for (Object child : (Iterable<?>) value) {
+                        children.put(name + "[" + (index++) + "]", (Entity) child);
                     }
-                } else {
-                    // Simple attribute, attach description to node name
+                } catch (ClassCastException cce) {
+                    // Special case for non-entity collections
                     line += " " + name + "=\"" + value + "\"";
                 }
-            } catch (IllegalAccessException cannotHappen) {
+            } else {
+                // Simple attribute, attach description to node name
+                line += " " + name + "=\"" + value + "\"";
             }
         }
         out.println(line);
+
+        // Now we can go through all the entity children that were saved up earlier
         for (Map.Entry<String, Entity> child: children.entrySet()) {
             printSyntaxTree(indent + "  ", child.getKey() + ": ", child.getValue(), out);
         }
     }
 
     /**
-     * Traverses the semantic graph starting at e, applying visitor v to each entity.
+     * Traverses the semantic graph starting at this entity, applying visitor v to each entity.
      */
-    public static void traverse(Entity e, Visitor v, Set<Entity> visited) {
+    public void traverse(Visitor v, Set<Entity> visited) {
 
-        if (visited.contains(e)) {
+        // The graph may have cycles, so skip this entity if we have seen it before.  If we
+        // haven't, mark it seen.
+        if (visited.contains(this)) {
             return;
         }
-        visited.add(e);
+        visited.add(this);
 
-        v.visit(e);
-
-        for (Field field: Entity.relevantFields(e.getClass())) {
-            try {
-                field.setAccessible(true);
-                Object value = field.get(e);
-                if (value == null) {
-                    continue;
-                } else if (value instanceof Entity) {
-                    traverse((Entity)value, v, visited);
-                } else if (value instanceof Collection<?>) {
-                    for (Object child: (Collection<?>)value) {
-                        traverse((Entity)child, v, visited);
-                    }
+        v.onEntry(this);
+        for (Map.Entry<String, Object> entry: attributes().entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Entity) {
+                Entity.class.cast(value).traverse(v, visited);
+            } else if (value instanceof Iterable<?>) {
+                for (Object child : (Iterable<?>) value) {
+                    Entity.class.cast(child).traverse(v, visited);
                 }
-            } catch (IllegalAccessException cannotHappen) {
             }
         }
+        v.onExit(this);
     }
 
     public static interface Visitor {
-        void visit(Entity e);
+        void onEntry(Entity e);
+        void onExit(Entity e);
     }
 
     public static void dump(Entity root, PrintWriter writer) {
@@ -125,20 +117,25 @@ public abstract class Entity {
     }
 
     /**
-     * Returns a list of all non-static declared fields of class c, together with the relevant
-     * fields of its ancestor classes, assuming that c is a descendant class of Entity.
+     * Returns a map of name-value pairs for the given entity's fields and their values.  The
+     * set of fields computed here are the non-static declared fields of its class, together with
+     * the relevant fields of its ancestor classes, up to but not including the class Entity
+     * itself.
      */
-    private static List<Field> relevantFields(Class<?> c) {
-        List<Field> attributes = new ArrayList<Field>();
-        for (Field field: c.getDeclaredFields()) {
-            if ((field.getModifiers() & Modifier.STATIC) == 0) {
-                attributes.add(field);
+    private Map<String, Object> attributes() {
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        for (Class<?> c = getClass(); c != Entity.class; c = c.getSuperclass()) {
+            for (Field field: c.getDeclaredFields()) {
+                if ((field.getModifiers() & Modifier.STATIC) == 0) {
+                    try {
+                        field.setAccessible(true);
+                        result.put(field.getName(), field.get(this));
+                    } catch (IllegalAccessException cannotHappen) {
+                    }
+                }
             }
         }
-        if (c.getSuperclass() != Entity.class) {
-            attributes.addAll(relevantFields(c.getSuperclass()));
-        }
-        return attributes;
+        return result;
     }
 
     /**

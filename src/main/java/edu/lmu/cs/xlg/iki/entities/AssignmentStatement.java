@@ -28,4 +28,15 @@ public class AssignmentStatement extends Statement {
         variableReference.analyze(table, log);
         expression.analyze(table, log);
     }
+
+    @Override
+    public Statement optimize() {
+        expression = expression.optimize();
+        if (variableReference.sameVariableAs(expression)) {
+            // Assignment to self is a no-op
+            return null;
+        }
+        return this;
+    }
+
 }
