@@ -34,7 +34,7 @@ public class WhileStatement extends Statement {
         condition = condition.optimize();
         body.optimize();
         if  (condition.isZero()) {
-            // "while 0" is really a no-op!
+            // "while 0" is a no-op
             return null;
         }
         return this;

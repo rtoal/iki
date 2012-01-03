@@ -38,6 +38,11 @@ public class Block extends Entity {
         }
     }
 
+    /**
+     * Performs local optimizations on this block.  In particular we ask each statement in the
+     * block to optimize itself.  In cases where the optimization of a statement detects dead
+     * or unreachable code, we remove that statement.
+     */
     public void optimize() {
         for (ListIterator<Statement> it = statements.listIterator(); it.hasNext();) {
             Statement original = it.next();

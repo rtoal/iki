@@ -61,7 +61,7 @@ public class BinaryExpression extends Expression {
             case PLUS: return new Number(x + y);
             case MINUS: return new Number(x - y);
             case TIMES: return new Number(x * y);
-            case DIVIDE: return new Number(x / y);
+            case DIVIDE: if (y != 0) return new Number(x / y);
             }
         } else {
             switch (operator) {
