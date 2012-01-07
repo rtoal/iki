@@ -1,7 +1,8 @@
 package edu.lmu.cs.xlg.iki.generators;
-
 import java.io.PrintWriter;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import edu.lmu.cs.xlg.iki.entities.AssignmentStatement;
@@ -24,14 +25,23 @@ public class IkiToX86Generator extends Generator {
 
     private RegisterAllocator allocator = new RegisterAllocator();
     private Set<String> usedVariables = new HashSet<String>();
+    private static int numberOfLabelsGenerated = 0;
 
     @Override
     public void generate(Program program, PrintWriter writer) {
         this.writer = writer;
 
-        emitProgramPrologue();
+        emit("\t.globl\tmain");
+        emit("\t.text");
+        emit("main:");
         generateBlock(program.getBlock());
-        emitProgramEpilogue();
+        emit("\tret");
+        emit("\t.data");
+        emit("READ:\t.ascii\t\"%d\\0\\0\""); // extra 0 for alignment
+        emit("WRITE:\t.ascii\t\"%d \\0\"");
+        for (String s: usedVariables) {
+            emit(s + ":\t.quad\t0");
+        }
     }
 
     // Translation Functions - one for each entity.
@@ -62,7 +72,7 @@ public class IkiToX86Generator extends Generator {
         Operand destination = generateVariableReference(s.getVariableReference());
         if (source instanceof MemoryOperand && destination instanceof MemoryOperand) {
             Operand oldSource = source;
-            source = new RegisterOperand(allocator.getRegister());
+            source = allocator.makeRegisterOperand();
             emitMove(oldSource, source);
         }
         emitMove(source, destination);
@@ -109,7 +119,7 @@ public class IkiToX86Generator extends Generator {
     }
 
     private MemoryOperand generateVariableReference(VariableReference variable) {
-        String name = id(variable);
+        String name = id(variable.getReferent());
         usedVariables.add(name);
         return new MemoryOperand(name);
     }
@@ -118,48 +128,25 @@ public class IkiToX86Generator extends Generator {
         Operand left = generateExpression(e.getLeft());
         Operand right = generateExpression(e.getRight());
         Operand result;
-        if (left instanceof RegisterOperand) {
-            result = left;
+        if (e.getOperator() != BinaryExpression.Operator.DIVIDE) {
+            if (left instanceof RegisterOperand) {
+                result = left;
+            } else {
+                result = allocator.makeRegisterOperand();
+                emitMove(left, result);
+            }
+            switch (e.getOperator()) {
+            case PLUS: emitBinary("addq", right, result); break;
+            case MINUS: emitBinary("subq", right, result); break;
+            case TIMES: emitBinary("mulq", right, result); break;
+            }
         } else {
-            result = new RegisterOperand(allocator.getRegister());
-            emitMove(left, result);
-        }
-        switch (e.getOperator()) {
-        case PLUS: emitBinary("add", right, result);
-        case MINUS: emitBinary("sub", right, result);
-        case TIMES: emitBinary("mul", right, result);
-        case DIVIDE: emit("# Divide is not yet supported");
+            result = allocator.makeRegisterOperandFor("rax");
+            emit("\tmovq\t" + left + ", " + result);
+            emit("\tcqto");
+            emit("\tidivq\t" + allocator.nonImmediate(right));
         }
         return result;
-    }
-
-    // Assembly Language Specific part of the Generator.
-    // To target a new x86 assembler, override the methods
-    // from here down.
-
-    /**
-     * Emits the assembly language that goes at the beginning.
-     */
-    protected void emitProgramPrologue() {
-        emit("\t.globl\t_main");
-        emit("\t.text");
-        emit("_main:");
-    }
-
-    /**
-     * Emits the assembly language that goes at the end. We need a return instruction at the end of
-     * the code, then a data section which declares format strings for scanf() and printf(), then
-     * data declarations for all the variables that were declared. Here is where we handle the
-     * requirement that all variables are initialized to zero.
-     */
-    protected void emitProgramEpilogue() {
-        emit("\tret");
-        emit("\t.data");
-        emit("READ:\t.ascii\t\"%d\\0\\0\""); // extra 0 for alignment
-        emit("WRITE:\t.ascii\t\"%d \\0\"");
-        for (String s: usedVariables) {
-            emit(s + ":\t.quad\t0");
-        }
     }
 
     /**
@@ -173,7 +160,7 @@ public class IkiToX86Generator extends Generator {
      * Emits a single move instruction.
      */
     protected void emitMove(Operand source, Operand destination) {
-        emit("\tmov\t" + source + ", " + destination);
+        emit("\tmovq\t" + source + ", " + destination);
     }
 
     /**
@@ -189,12 +176,7 @@ public class IkiToX86Generator extends Generator {
      * immediate values, so if the operand is immediate we have to get a new register for it.
      */
     protected void emitJumpIfFalse(Operand operand, Label label) {
-        if (operand instanceof ImmediateOperand) {
-            Operand oldOperand = operand;
-            operand = new RegisterOperand(allocator.getRegister());
-            emit("\tmovq\t" + oldOperand + ", " + operand);
-        }
-        emit("\tcmp\t$0, " + operand);
+        emit("\tcmpq\t$0, " + allocator.nonImmediate(operand));
         emit("\tje\t" + label);
     }
 
@@ -210,10 +192,10 @@ public class IkiToX86Generator extends Generator {
      * operand to be in %rsi and the format string in %rdi.
      */
     protected void emitRead(MemoryOperand operand) {
-        emit("\tmov\t" + operand.address() + ", %rsi");
-        emit("\tmov\t$READ, %rdi");
-        emit("\txor\t%rax, %rax");
-        emit("\tcall\t_scanf");
+        emit("\tmovq\t" + operand.address() + ", %rsi");
+        emit("\tmovq\t$READ, %rdi");
+        emit("\txorq\t%rax, %rax");
+        emit("\tcall\tscanf");
     }
 
     /**
@@ -221,105 +203,151 @@ public class IkiToX86Generator extends Generator {
      * operand to be in %rsi and the format string in %rdi.
      */
     protected void emitWrite(Operand operand) {
-        emit("\tmov\t" + operand + ", %rsi");
-        emit("\tmov\t$WRITE, %rdi");
-        emit("\txor\t%rax, %rax");
-        emit("\tcall\t_printf");
+        emit("\tmovq\t" + operand + ", %rsi");
+        emit("\tmovq\t$WRITE, %rdi");
+        emit("\txorq\t%rax, %rax");
+        emit("\tcall\tprintf");
     }
-}
 
-/**
- * A ridiculously simple register allocator. Call <code>getRegister()</code> to get the name of a
- * free register, or have an exception thrown if there are no free registers available. You can't
- * mark individual registers free; you can only call freeAllRegisters().
- */
-class RegisterAllocator {
-    private int numberOfRegistersInUse = 0;
+    /**
+     * A ridiculously simple register allocator. It thrown an exception thrown there are no free
+     * registers available.  Also, it never allocates %rdx, since that is used for division.
+     * You can't mark individual registers free; you can only call freeAllRegisters().
+     */
+    private class RegisterAllocator {
+        public Map<String, RegisterOperand> used = new HashMap<String, RegisterOperand>();
 
-    private static String[] names = { "rax", "rdx", "rcx", "r8", "r9", "r10", "r11"};
+        // TODO replace names with enum
+        private final String[] names = { "rax", "rcx", "r8", "r9", "r10", "r11"};
 
-    public String getRegister() {
-        if (numberOfRegistersInUse == names.length) {
+        /**
+         * Returns a brand new register operand bound to a specific register.  If something is
+         * already in that register, generates code to move it out and rebind to a new register.
+         */
+        public RegisterOperand makeRegisterOperandFor(String registerName) {
+            RegisterOperand whatsAlreadyThere = used.get(registerName);
+            if (whatsAlreadyThere != null) {
+                assignRegister(whatsAlreadyThere);
+                emit("\tmovq\t%" + registerName + ", " + whatsAlreadyThere);
+            }
+            RegisterOperand operand = new RegisterOperand(registerName);
+            used.put(registerName, operand);
+            return operand;
+        }
+
+        /**
+         * Returns a brand new register operand bound to the first available free register.
+         */
+        public RegisterOperand makeRegisterOperand() {
+            RegisterOperand operand = new RegisterOperand("");
+            assignRegister(operand);
+            return operand;
+        }
+
+        /**
+         * If the operand is already non-immediate, return it, otherwise generate a new register
+         * operand containing this value.
+         */
+        public Operand nonImmediate(Operand operand) {
+            if (operand instanceof ImmediateOperand) {
+                RegisterOperand newOperand = allocator.makeRegisterOperand();
+                emit("\tmovq\t" + operand + ", " + newOperand);
+                return newOperand;
+            }
+            return operand;
+        }
+
+        /**
+         * Changes the register value of an existing register operand to the first available
+         * register.
+         */
+        private void assignRegister(RegisterOperand operand) {
+            for (String register: names) {
+                if (!used.containsKey(register)) {
+                    used.put(register, operand);
+                    operand.register = register;
+                    return;
+                }
+            }
             throw new RuntimeException("No more registers available");
         }
-        return names[numberOfRegistersInUse++];
+
+        public void freeAllRegisters() {
+            used.clear();
+        }
     }
 
-    public void freeAllRegisters() {
-        numberOfRegistersInUse = 0;
-    }
-}
+    /**
+     * Assembly language labels.
+     */
+    private class Label {
 
-/**
- * Assembly language labels.
- */
-class Label {
-    private static int numberOfLabelsGenerated = 0;
-    private int labelNumber;
+        private int labelNumber;
 
-    public Label() {
-        labelNumber = ++numberOfLabelsGenerated;
-    }
+        public Label() {
+            labelNumber = ++numberOfLabelsGenerated;
+        }
 
-    public String toString() {
-        return "L" + labelNumber;
-    }
-}
-
-/**
- * Assembly language operands.
- */
-abstract class Operand {
-}
-
-/**
- * Assembly language immediate operands, e.g. 4.
- */
-class ImmediateOperand extends Operand {
-    private int value;
-
-    public ImmediateOperand(int value) {
-        this.value = value;
+        public String toString() {
+            return "L" + labelNumber;
+        }
     }
 
-    public String toString() {
-        return "$" + value;
-    }
-}
-
-/**
- * Assembly language register operands, e.g. esi.
- */
-class RegisterOperand extends Operand {
-    private String register;
-
-    public RegisterOperand(String register) {
-        this.register = register;
+    /**
+     * Assembly language operands.
+     */
+    private abstract class Operand {
     }
 
-    public String toString() {
-        return "%" + register;
-    }
-}
+    /**
+     * Assembly language immediate operands, e.g. 4.
+     */
+    private class ImmediateOperand extends Operand {
+        private int value;
 
-/**
- * Assembly language memory operands. Although the x86 has a variety of addressing modes, Iki
- * programs require only direct operands. All Iki variables will be stored in a data section. The
- * assembly language name of a variable is its Iki name suffixed with a '$' (to prevent clashes with
- * assembly language reserved words).
- */
-class MemoryOperand extends Operand {
-    private String variable;
+        public ImmediateOperand(int value) {
+            this.value = value;
+        }
 
-    public MemoryOperand(String variable) {
-        this.variable = variable;
+        public String toString() {
+            return "$" + value;
+        }
     }
 
-    public String address() {
-        return "$" + variable;
+    /**
+     * Assembly language register operands, e.g. esi.
+     */
+    private class RegisterOperand extends Operand {
+        private String register;
+
+        public RegisterOperand(String register) {
+            this.register = register;
+        }
+
+        public String toString() {
+            return "%" + register;
+        }
     }
 
-    public String toString() {
-        return variable;
+    /**
+     * Assembly language memory operands. Although the x86 has a variety of addressing modes, Iki
+     * programs require only direct operands. All Iki variables will be stored in a data section.
+     * The assembly language name of a variable is its Iki name suffixed with a '$' (to prevent
+     * clashes with assembly language reserved words).
+     */
+    private class MemoryOperand extends Operand {
+        private String variable;
+
+        public MemoryOperand(String variable) {
+            this.variable = variable;
+        }
+
+        public String address() {
+            return "$" + variable;
+        }
+
+        public String toString() {
+            return variable;
+        }
     }
 }
