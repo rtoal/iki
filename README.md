@@ -1,4 +1,4 @@
-[Iki](http://www.cs.lmu.edu/~ray/notes/iki/) is a small programming language,
+[Iki](http://cs.lmu.edu/~ray/notes/iki/) is a small programming language,
 which is why it is not named Nui. It is small enough that one can write a
 complete, formal semantics for the language, and that students can build a
 compiler for the language themselves.
